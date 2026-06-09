@@ -402,8 +402,28 @@ impl BitcoinTransaction {
 
 impl fmt::Display for BitcoinTransaction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: Format a user-friendly string showing version, inputs, lock_time
+        // Format a user-friendly string showing version, inputs, lock_time
         // Display scriptSig length and bytes, and previous output info
-        todo!()
+        // // lean on serde for all of this
+        // match serde_json::to_string_pretty(self) {
+        //     Ok(pretty_json_string) => write!(f, "{}", pretty_json_string),
+        //     Err(_) => Err(fmt::Error),
+        // }
+
+        // or not... some strings are explicitly expected, so do (some of) it manually
+        writeln!(f, "BitcoinTransaction:")?;
+        writeln!(f, "Version: {}", self.version)?;
+        writeln!(f, "Lock Time: {}", self.lock_time)?;
+        writeln!(f, "Inputs: [")?;
+        for input in self.inputs.iter() {
+            writeln!(f, "\tSequence: {}", input.sequence)?;
+            writeln!(f, "\tScriptSig: {:?}", input.script_sig)?;
+            writeln!(f, "\tPrevious Output: {{")?;
+            let outpoint = &input.previous_output;
+            writeln!(f, "\t\tTxid: {:?}", outpoint.txid)?;
+            writeln!(f, "\t\tPrevious Output Vout: {}", outpoint.vout)?;
+            writeln!(f, "\t}}")?;
+        }
+        writeln!(f, "]")
     }
 }
