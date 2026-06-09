@@ -252,10 +252,10 @@ impl Script {
 }
 
 impl Deref for Script {
-    type Target = Vec<u8>;
+    type Target = [u8];
     fn deref(&self) -> &Self::Target {
-        // TODO: Allow &Script to be used as &[u8]
-        todo!()
+        // Allow &Script to be used as &[u8]
+        &self.bytes
     }
 }
 
