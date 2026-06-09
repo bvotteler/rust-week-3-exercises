@@ -65,8 +65,6 @@ impl CompactSize {
             return Err(BitcoinError::InsufficientBytes);
         }
 
-        // to count consumption as we go along
-        let mut consumed: usize = 0;
         // need mutable slice to be able to consume with read()
         let mut reader = bytes;
 
