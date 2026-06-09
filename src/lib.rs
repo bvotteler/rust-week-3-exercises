@@ -181,19 +181,43 @@ pub struct OutPoint {
 
 impl OutPoint {
     pub fn new(txid: [u8; 32], vout: u32) -> Self {
-        // TODO: Create an OutPoint from raw txid bytes and output index
-        todo!()
+        // Create an OutPoint from raw txid bytes and output index
+        Self {
+            txid: Txid(txid),
+            vout,
+        }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        // TODO: Serialize as: txid (32 bytes) + vout (4 bytes, little-endian)
-        todo!()
+        // Serialize as: txid (32 bytes) + vout (4 bytes, little-endian)
+        let Txid(txid_bytes) = self.txid;
+        let vout_bytes = self.vout.to_le_bytes();
+
+        // initialize big enough vector
+        let mut bytes: Vec<u8> = Vec::with_capacity(36);
+        bytes.extend_from_slice(&txid_bytes);
+        bytes.extend_from_slice(&vout_bytes);
+
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
-        // TODO: Deserialize 36 bytes: txid[0..32], vout[32..36]
+        // Deserialize 36 bytes: txid[0..32], vout[32..36]
         // Return error if insufficient bytes
-        todo!()
+        if bytes.len() < 36 {
+            return Err(BitcoinError::InsufficientBytes);
+        }
+
+        let txid_bytes: [u8; 32] = bytes[0..32]
+            .try_into()
+            .map_err(|_| BitcoinError::InvalidFormat)?;
+
+        let vout_bytes = bytes[32..36]
+            .try_into()
+            .map_err(|_| BitcoinError::InvalidFormat)?;
+        let vout = u32::from_le_bytes(vout_bytes);
+
+        Ok((Self::new(txid_bytes, vout), 36))
     }
 }
 
