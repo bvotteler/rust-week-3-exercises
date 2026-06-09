@@ -304,7 +304,6 @@ impl TransactionInput {
         }
 
         let mut reader = &bytes[bytes_read..];
-        println!("in from_bytes, reader: {:?}", reader);
         let mut seq_bytes = [0u8; 4];
         // read 4 bytes, map error
         reader
@@ -327,24 +326,77 @@ pub struct BitcoinTransaction {
 
 impl BitcoinTransaction {
     pub fn new(version: u32, inputs: Vec<TransactionInput>, lock_time: u32) -> Self {
-        // TODO: Construct a transaction from parts
-        todo!()
+        // Construct a transaction from parts
+        BitcoinTransaction {
+            version,
+            inputs,
+            lock_time,
+        }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        // TODO: Format:
+        // Format:
         // - version (4 bytes LE)
+        let version_bytes = self.version.to_le_bytes();
+
         // - CompactSize (number of inputs)
+        let compact_size = CompactSize::new(self.inputs.len() as u64);
+        let size_bytes = compact_size.to_bytes();
+
         // - each input serialized
+        let input_txs_vec: Vec<u8> = self.inputs.iter().flat_map(|tx| tx.to_bytes()).collect();
+
         // - lock_time (4 bytes LE)
-        todo!()
+        let lock_time_bytes = self.lock_time.to_le_bytes();
+
+        // construct vector with bytes
+        let mut bytes: Vec<u8> = Vec::with_capacity(
+            version_bytes.len() + size_bytes.len() + input_txs_vec.len() + lock_time_bytes.len(),
+        );
+
+        bytes.extend_from_slice(&version_bytes);
+        bytes.extend_from_slice(&size_bytes);
+        bytes.extend_from_slice(&input_txs_vec);
+        bytes.extend_from_slice(&lock_time_bytes);
+
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
-        // TODO: Read version, CompactSize for input count
+        let mut reader = bytes;
+
+        // Read version, CompactSize for input count
+        let mut version_bytes = [0u8; 4];
+        reader
+            .read(&mut version_bytes)
+            .map_err(|_| BitcoinError::InvalidFormat)?;
+        let mut bytes_read = version_bytes.len();
+
+        let version = u32::from_le_bytes(version_bytes);
+
+        let (compact_size, size_len) = CompactSize::from_bytes(&bytes[bytes_read..])?;
+        bytes_read += size_len;
+
         // Parse inputs one by one
+        let mut inputs: Vec<TransactionInput> = Vec::with_capacity(compact_size.value as usize);
+
+        for _ in 0..compact_size.value {
+            let (tx, tx_len) = TransactionInput::from_bytes(&bytes[bytes_read..])?;
+            bytes_read += tx_len;
+            inputs.push(tx);
+        }
+
         // Read final 4 bytes for lock_time
-        todo!()
+        let mut reader = &bytes[bytes_read..];
+        let mut lock_time_bytes = [0u8; 4];
+        reader
+            .read(&mut lock_time_bytes)
+            .map_err(|_| BitcoinError::InvalidFormat)?;
+        bytes_read += lock_time_bytes.len();
+
+        let lock_time = u32::from_le_bytes(lock_time_bytes);
+
+        Ok((Self::new(version, inputs, lock_time), bytes_read))
     }
 }
 
