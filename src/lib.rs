@@ -268,21 +268,53 @@ pub struct TransactionInput {
 
 impl TransactionInput {
     pub fn new(previous_output: OutPoint, script_sig: Script, sequence: u32) -> Self {
-        // TODO: Basic constructor
-        todo!()
+        // Basic constructor
+        Self {
+            previous_output,
+            script_sig,
+            sequence,
+        }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        // TODO: Serialize: OutPoint + Script (with CompactSize) + sequence (4 bytes LE)
-        todo!()
+        // Serialize: OutPoint + Script (with CompactSize) + sequence (4 bytes LE)
+        let out_bytes = self.previous_output.to_bytes();
+        let script_bytes = self.script_sig.to_bytes();
+        let seq_bytes = self.sequence.to_le_bytes();
+
+        let mut bytes = Vec::with_capacity(out_bytes.len() + script_bytes.len() + seq_bytes.len());
+        bytes.extend_from_slice(&out_bytes);
+        bytes.extend_from_slice(&script_bytes);
+        bytes.extend_from_slice(&seq_bytes);
+
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
-        // TODO: Deserialize in order:
+        // Deserialize in order:
         // - OutPoint (36 bytes)
+        let (outpoint, out_len) = OutPoint::from_bytes(bytes)?;
         // - Script (with CompactSize)
+        let (script, script_len) = Script::from_bytes(&bytes[out_len..])?;
         // - Sequence (4 bytes)
-        todo!()
+        let bytes_read = out_len + script_len;
+        let bytes_remaining = bytes.len() - bytes_read;
+        if bytes_remaining < 4 {
+            return Err(BitcoinError::InsufficientBytes);
+        }
+
+        let mut reader = &bytes[bytes_read..];
+        println!("in from_bytes, reader: {:?}", reader);
+        let mut seq_bytes = [0u8; 4];
+        // read 4 bytes, map error
+        reader
+            .read(&mut seq_bytes)
+            .map_err(|_| BitcoinError::InvalidFormat)?;
+
+        let sequence = u32::from_le_bytes(seq_bytes);
+        let total_bytes_read = bytes_read + seq_bytes.len();
+
+        Ok((Self::new(outpoint, script, sequence), total_bytes_read))
     }
 }
 
