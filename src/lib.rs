@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error};
 use std::fmt;
 use std::io::Read;
 use std::ops::Deref;
@@ -141,8 +141,9 @@ impl Serialize for Txid {
     where
         S: serde::Serializer,
     {
-        // TODO: Serialize as a hex-encoded string (32 bytes => 64 hex characters)
-        todo!()
+        // Serialize as a hex-encoded string (32 bytes => 64 hex characters)
+        let hex_str = hex::encode(self.0);
+        serializer.serialize_str(&hex_str)
     }
 }
 
@@ -151,9 +152,24 @@ impl<'de> Deserialize<'de> for Txid {
     where
         D: serde::Deserializer<'de>,
     {
-        // TODO: Parse hex string into 32-byte array
+        // Parse hex string into 32-byte array
+        let hex_str = String::deserialize(deserializer)?;
+
         // Use `hex::decode`, validate length = 32
-        todo!()
+        // precondition: need 64 character hex to get 32 length byte array
+        if hex_str.len() != 64 {
+            return Err(D::Error::custom(format!(
+                "invalid txid length: expected 64 hex characters, found {}",
+                hex_str.len()
+            )));
+        }
+
+        let mut bytes = [0u8; 32];
+        hex::decode_to_slice(&hex_str, &mut bytes)
+            // map error
+            .map_err(|e| D::Error::custom(format!("error while decoding hex: {}", e)))?;
+
+        Ok(Txid(bytes))
     }
 }
 
