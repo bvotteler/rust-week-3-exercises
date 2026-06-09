@@ -73,19 +73,13 @@ impl CompactSize {
         let mut prefix_byte = [0u8; 1];
         // read from bytes
         reader
-            .read_exact(&mut prefix_byte)
+            .read(&mut prefix_byte)
             .map_err(|_| BitcoinError::InvalidFormat)?;
 
         // Check that enough bytes are available based on prefix.
         let prefix = prefix_byte[0];
         match prefix {
             0..0xFD => {
-                // expect no more bytes left to consume,
-                // and prefix_byte, is the compact size.
-                if !reader.is_empty() {
-                    return Err(BitcoinError::InvalidFormat);
-                }
-
                 // prefix is the size, so return that
                 let compact = CompactSize::new(prefix as u64);
                 Ok((compact, 1))
@@ -94,8 +88,8 @@ impl CompactSize {
                 // expect 2 more bytes
                 let mut buffer = [0u8; 2];
                 reader
-                    // will throw if not exact size left
-                    .read_exact(&mut buffer)
+                    // throws if not enough bytes left
+                    .read(&mut buffer)
                     .map_err(|_| BitcoinError::InvalidFormat)?;
 
                 // 2*u8 fits into u16
@@ -107,8 +101,8 @@ impl CompactSize {
                 // expect 4 more bytes
                 let mut buffer = [0u8; 4];
                 reader
-                    // will throw if not exact size left
-                    .read_exact(&mut buffer)
+                    // throws if not enough bytes left
+                    .read(&mut buffer)
                     .map_err(|_| BitcoinError::InvalidFormat)?;
 
                 // 4*u8 fits into u32
@@ -120,8 +114,8 @@ impl CompactSize {
                 // expect 8 more bytes
                 let mut buffer = [0u8; 8];
                 reader
-                    // will throw if not exact size left
-                    .read_exact(&mut buffer)
+                    // throws if not enough bytes left
+                    .read(&mut buffer)
                     .map_err(|_| BitcoinError::InvalidFormat)?;
 
                 // 8*u8 fits into u64
@@ -228,19 +222,32 @@ pub struct Script {
 
 impl Script {
     pub fn new(bytes: Vec<u8>) -> Self {
-        // TODO: Simple constructor
-        todo!()
+        // Simple constructor
+        Self { bytes }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        // TODO: Prefix with CompactSize (length), then raw bytes
-        todo!()
+        // Prefix with CompactSize (length), then raw bytes
+        let compact_size = CompactSize::new(self.bytes.len() as u64);
+
+        let prefix = compact_size.to_bytes();
+
+        // initialize vector capacity, then append
+        let mut bytes = Vec::with_capacity(prefix.len() + self.bytes.len());
+        bytes.extend_from_slice(&prefix);
+        bytes.extend_from_slice(&self.bytes);
+
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
-        // TODO: Parse CompactSize prefix, then read that many bytes
-        // Return error if not enough bytes
-        todo!()
+        // Parse CompactSize prefix, then read that many bytes
+        let (size, bytes_read) = CompactSize::from_bytes(bytes)?;
+        let end_of_block = size.value as usize + bytes_read;
+
+        let script_bytes: &[u8] = &bytes[bytes_read..end_of_block];
+
+        Ok((Self::new(script_bytes.to_vec()), end_of_block))
     }
 }
 
