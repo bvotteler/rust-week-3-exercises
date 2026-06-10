@@ -27,7 +27,7 @@ impl CompactSize {
         // [0xFExxxxxxxx] => 0xFE + u32 (4 bytes)
         // [0xFFxxxxxxxxxxxxxxxx] => 0xFF + u64 (8 bytes)
         match self.value {
-            // less than 256
+            // less than 253
             v if v < 253 => {
                 vec![self.value as u8]
             }
@@ -39,7 +39,7 @@ impl CompactSize {
                 v.insert(0, 0xFD);
                 v
             }
-            // between 256^2 (incl) and 256^4 (incl)
+            // between 256^2 + 1 and 256^4 (incl)
             v if v <= u32::MAX as u64 => {
                 // casting locks in required byte width
                 let size: u32 = self.value as u32;
@@ -47,7 +47,7 @@ impl CompactSize {
                 v.insert(0, 0xFE);
                 v
             }
-            // catchall: between 256^4 (incl) and 256^8 (incl)
+            // catchall: between 256^4 + 1 and 256^8 (incl)
             // v if v <= u64::MAX => {
             _ => {
                 // no need to cast it's u64 already
